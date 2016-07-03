@@ -29,7 +29,8 @@ public class Server {
 
 
         System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "info");
-        port(5678);
+        port(5679);
+        System.out.println("Server started at port 5679");
         //show exceptions in console and HTTP responses
         exception(Exception.class, (exception, request, response) -> {
             //show the exceptions using stdout
