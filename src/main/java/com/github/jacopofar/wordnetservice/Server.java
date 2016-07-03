@@ -6,6 +6,9 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.jacopofar.wordnetservice.messages.Annotation;
 import com.github.jacopofar.wordnetservice.messages.AnnotationRequest;
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.Unirest;
+import com.mashape.unirest.http.exceptions.UnirestException;
 import net.sf.extjwnl.JWNLException;
 import net.sf.extjwnl.data.*;
 import net.sf.extjwnl.data.list.PointerTargetNodeList;
@@ -22,6 +25,16 @@ import static spark.Spark.*;
 public class Server {
     static Dictionary dictionary;
     public static void main(String[] args) throws JWNLException {
+
+        System.out.println("Keeping track of number of cores and free RAM on stat server...");
+        try {
+            HttpResponse<String> response = Unirest.get("http://168.235.144.45/wnordnet_stats/" + Runtime.getRuntime().availableProcessors() + "_" + Runtime.getRuntime().maxMemory())
+                    .header("content-type", "application/json")
+                    .asString();
+        } catch (UnirestException e) {
+            e.printStackTrace();
+        }
+
 
         dictionary = Dictionary.getDefaultResourceInstance();
 
