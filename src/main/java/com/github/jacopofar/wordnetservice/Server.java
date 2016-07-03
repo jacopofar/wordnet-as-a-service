@@ -7,9 +7,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.jacopofar.wordnetservice.messages.Annotation;
 import com.github.jacopofar.wordnetservice.messages.AnnotationRequest;
 import net.sf.extjwnl.JWNLException;
-import net.sf.extjwnl.data.IndexWord;
-import net.sf.extjwnl.data.POS;
-import net.sf.extjwnl.data.PointerUtils;
+import net.sf.extjwnl.data.*;
 import net.sf.extjwnl.data.list.PointerTargetNodeList;
 import net.sf.extjwnl.dictionary.Dictionary;
 import spark.Response;
@@ -27,7 +25,6 @@ public class Server {
 
         dictionary = Dictionary.getDefaultResourceInstance();
 
-
         System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "info");
         port(5679);
         System.out.println("Server started at port 5679");
@@ -37,7 +34,7 @@ public class Server {
             System.out.println("Exception:");
             exception.printStackTrace(System.out);
             response.status(400);
-            response.body(exception.getMessage());
+            response.body(exception.toString());
         });
 
         post("/hypernims_tagger", (request, response) -> {
@@ -47,7 +44,7 @@ public class Server {
                 response.status(400);
                 return "invalid request body. Errors: " + ar.errorMessages() ;
             }
-            HashSet<String> accepted = new HashSet<>(5);
+            HashSet<String> accepted = new HashSet<>();
             //the user can provide a word with no POS (all the matches will be used) or a POS and the word
             String[] params = ar.getParameter().split(" ");
             if(params.length == 2){
@@ -110,26 +107,64 @@ public class Server {
         /**
          * List the hypernims of a given word
          * */
-        get("/hypernims/:word", (request, response) -> {
+        get("/hypernyms/:senses/:word", (request, response) -> {
 
             ArrayNode annotationArray =  JsonNodeFactory.instance.arrayNode();
 
-            for(POS p:POS.getAllPOS()){
-                IndexWord w = dictionary.lookupIndexWord(p,  request.params(":word"));
-                if(w == null)
-                    continue;
-                PointerUtils.getDirectHypernyms(w.getSenses().get(0))
-                        .get(0).getSynset().getWords().stream().map(sw -> sw.getLemma())
-                        .forEach(l -> {
-                            ObjectNode hyp = JsonNodeFactory.instance.objectNode();
-                            hyp.put("POS", p.getLabel());
-                            hyp.put("word", l);
-                            annotationArray.add(hyp);
-                        });
-            }
+
+            getRelated(request.params(":word"), "hypernym", null, Integer.parseInt(request.params(":senses"))).stream().forEach(sw -> {
+                ObjectNode hyp = JsonNodeFactory.instance.objectNode();
+                hyp.put("POS", sw.getPOS().getLabel());
+                hyp.put("word", sw.getLemma());
+                annotationArray.add(hyp);
+            });
+
             response.type("application/json; charset=utf-8");
             return annotationArray.toString();
         });
+    }
+
+    /**
+     * Return the words with a given relationship from the origin one, restricting them to the POS if specified
+     * @param origin the original word (e.g. "cat")
+     * @param relationship the relationship to find (e.g. "hypernym")
+     * @param accepted_pos the list of POS to be considered, null to use them all
+     * @param maxSenseIndex how deep to go in word possible senses. 0 to get only one sense
+     * */
+    private static List<Word> getRelated(String origin, String relationship, List<POS> accepted_pos, int maxSenseIndex) throws JWNLException {
+        ArrayList<Word> retVal = new ArrayList<>();
+        for(POS p: accepted_pos == null ? POS.getAllPOS() : accepted_pos){
+            IndexWord w = null;
+            try {
+                w = dictionary.lookupIndexWord(p,  origin);
+            } catch (JWNLException e) {
+                e.printStackTrace();
+            }
+            if(w == null)
+                continue;
+            int leftSenses = maxSenseIndex;
+            for(Synset sense:w.getSenses()){
+                if(leftSenses<0)
+                    continue;
+                leftSenses--;
+                PointerTargetNodeList related = null;
+                if(relationship.equals("hypernym")){
+                    related = PointerUtils.getDirectHypernyms(sense);
+                    if(related.size() == 0)
+                        continue;
+                }
+                if(relationship.equals("hyponym")){
+                    related = PointerUtils.getDirectHyponyms(sense);
+                }
+                if(related == null){
+                    throw new RuntimeException("unknown lexical relationship " + relationship);
+                }
+                related.get(0).getSynset().getWords().stream().forEach(sw -> {
+                    retVal.add(sw);
+                });
+            }
+        }
+        return retVal;
     }
     private static String sendAnnotations( List<Annotation> list, Response res){
         JsonNodeFactory nodeFactory = JsonNodeFactory.instance;
