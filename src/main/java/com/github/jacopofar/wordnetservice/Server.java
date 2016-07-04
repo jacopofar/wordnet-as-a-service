@@ -236,8 +236,6 @@ public class Server {
                         retVal.add(sw);
                     });
                 }
-
-
             }
         }
         return retVal;
