@@ -22,7 +22,12 @@ import java.util.stream.Collectors;
 import static spark.Spark.*;
 
 public class Server {
-    enum Relationships {HYPERNYM, HYPONYM};
+    enum Relationships {HYPERNYM, HYPONYM, ANTONYM, HOLONYM, SYNONYM, CAUSES, ENTAILMENT, SUBSTANCE_HOLONYM, SUBSTANCE_MERONYM, MERONYM}
+    static HashMap<String, Relationships> relNames = new HashMap<>();
+    static{
+        for(Relationships v:Relationships.values())
+            relNames.put(v.name().toLowerCase(),v);
+    }
     static Dictionary dictionary;
     public static void main(String[] args) throws JWNLException {
 
@@ -50,7 +55,15 @@ public class Server {
             response.body(exception.toString());
         });
 
-        post("/hypernyms_tagger/:senses", (request, response) -> {
+        /**
+         * Tag the words in a given relationship with the parameter
+         * */
+        post("/:tagger_type/:senses", (request, response) -> {
+            Relationships reltype = relNames.get(request.params(":tagger_type").replace("s_tagger",""));
+            if(reltype == null){
+                response.status(404);
+                return "Unknown lexical relationship type. Known ones:" + Arrays.toString(relNames.keySet().stream().map(n -> n + "s_tagger").toArray());
+            }
             ObjectMapper mapper = new ObjectMapper();
             AnnotationRequest ar = mapper.readValue(request.body(), AnnotationRequest.class);
             if(ar.errorMessages().size() != 0){
@@ -58,7 +71,6 @@ public class Server {
                 return "invalid request body. Errors: " + ar.errorMessages() ;
             }
             Map<String, String> params = getParams(ar.getParameter());
-
             if(!params.containsKey("w")){
                 response.status(400);
                 return "No word parameter found, it should be something like w=cat or pos=n,w=cat" ;
@@ -84,7 +96,7 @@ public class Server {
                 if(wordType.startsWith("n"))
                     accepted_pos.add(POS.NOUN);
             }
-            matchWords = getRelated(params.get("w"), Relationships.HYPERNYM, accepted_pos, Integer.parseInt(request.params(":senses")));
+            matchWords = getRelated(params.get("w"), reltype, accepted_pos, Integer.parseInt(request.params(":senses")));
 
             List<Annotation> anns = new ArrayList<>();
 
@@ -105,14 +117,18 @@ public class Server {
 
 
         /**
-         * List the hypernyms of a given word
+         * List the hypernyms/hyponyms/anything else of a given word
          * */
-        get("/hypernyms/:senses/:word", (request, response) -> {
-
+        get("/:relationship/:senses/:word", (request, response) -> {
+            Relationships reltype = relNames.get(request.params(":relationship").replaceAll("s$",""));
+            if(reltype == null){
+                response.status(404);
+                return "Unknown lexical relationship type. Known ones:" + Arrays.toString(relNames.keySet().stream().map(n -> n + "s").toArray());
+            }
             ArrayNode annotationArray =  JsonNodeFactory.instance.arrayNode();
 
 
-            getRelated(request.params(":word"), Relationships.HYPERNYM, null, Integer.parseInt(request.params(":senses"))).stream().forEach(sw -> {
+            getRelated(request.params(":word"), reltype, null, Integer.parseInt(request.params(":senses"))).stream().forEach(sw -> {
                 ObjectNode hyp = JsonNodeFactory.instance.objectNode();
                 hyp.put("POS", sw.getPOS().getLabel());
                 hyp.put("word", sw.getLemma());
@@ -140,59 +156,6 @@ public class Server {
             return annotationArray.toString();
         });
 
-
-        post("/hyponyms_tagger/:senses", (request, response) -> {
-            ObjectMapper mapper = new ObjectMapper();
-            AnnotationRequest ar = mapper.readValue(request.body(), AnnotationRequest.class);
-            if(ar.errorMessages().size() != 0){
-                response.status(400);
-                return "invalid request body. Errors: " + ar.errorMessages() ;
-            }
-            Map<String, String> params = getParams(ar.getParameter());
-
-            if(!params.containsKey("w")){
-                response.status(400);
-                return "No word parameter found, it should be something like w=cat or pos=n,w=cat" ;
-            }
-
-
-            List<POS> accepted_pos = null;
-            List<Word> matchWords = new LinkedList<>();
-            //the user can provide the POS or not
-            if(params.containsKey("pos")){
-                String wordType = params.get("pos").toLowerCase();
-                if(!wordType.matches("(adjective)|(noun)|(verb)|(adverb)|(adv)|n|v|(adj)")){
-                    response.status(400);
-                    return "invalid request, the word type has to be adjective, adverb, noun or verb, or adj, adv, n, v. This was " + wordType ;
-                }
-                accepted_pos = new LinkedList<>();
-                if(wordType.startsWith("adv"))
-                    accepted_pos.add(POS.ADVERB);
-                if(wordType.startsWith("adj"))
-                    accepted_pos.add(POS.ADJECTIVE);
-                if(wordType.startsWith("v"))
-                    accepted_pos.add(POS.VERB);
-                if(wordType.startsWith("n"))
-                    accepted_pos.add(POS.NOUN);
-            }
-            matchWords = getRelated(params.get("w"), Relationships.HYPONYM, accepted_pos, Integer.parseInt(request.params(":senses")));
-
-            List<Annotation> anns = new ArrayList<>();
-
-            String text = ar.getText().toLowerCase();
-            Set<String> distinctWords = matchWords.stream().map(w -> w.getLemma()).collect(Collectors.toSet());
-            distinctWords.forEach(l -> {
-                int lastIndex=0;
-                while(true){
-                    int ind=text.indexOf(l, lastIndex);
-                    if(ind ==- 1)
-                        break;
-                    anns.add(new Annotation(ind, ind + l.length()));
-                    lastIndex=ind+l.length();
-                }
-            });
-            return sendAnnotations(anns, response);
-        });
 
     }
 
@@ -227,6 +190,43 @@ public class Server {
                 }
                 if(relationship == Relationships.HYPONYM){
                     related = PointerUtils.getDirectHyponyms(sense);
+                    if(related.size() == 0)
+                        continue;
+                }
+                if(relationship == Relationships.ANTONYM){
+                    related = PointerUtils.getAntonyms(sense);
+                    if(related.size() == 0)
+                        continue;
+                }
+                if(relationship == Relationships.HOLONYM){
+                    related = PointerUtils.getHolonyms(sense);
+                    if(related.size() == 0)
+                        continue;
+                }
+                if(relationship == Relationships.MERONYM){
+                    related = PointerUtils.getMeronyms(sense);
+                    if(related.size() == 0)
+                        continue;
+                }
+                if(relationship == Relationships.SYNONYM){
+                    related = PointerUtils.getSynonyms(sense);
+                    if(related.size() == 0)
+                        continue;
+                }
+                if(relationship == Relationships.CAUSES){
+                    related = PointerUtils.getCauses(sense);
+                    if(related.size() == 0)
+                        continue;
+                }
+                if(relationship == Relationships.SUBSTANCE_HOLONYM){
+                    related = PointerUtils.getSubstanceHolonyms(sense);
+                    if(related.size() == 0)
+                        continue;
+                }
+                if(relationship == Relationships.SUBSTANCE_MERONYM){
+                    related = PointerUtils.getSubstanceMeronyms(sense);
+                    if(related.size() == 0)
+                        continue;
                 }
                 if(related == null){
                     throw new RuntimeException("unknown lexical relationship " + relationship);
