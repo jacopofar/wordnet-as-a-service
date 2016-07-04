@@ -48,7 +48,7 @@ public class Server {
             response.body(exception.toString());
         });
 
-        post("/hypernims_tagger/:senses", (request, response) -> {
+        post("/hypernyms_tagger/:senses", (request, response) -> {
             ObjectMapper mapper = new ObjectMapper();
             AnnotationRequest ar = mapper.readValue(request.body(), AnnotationRequest.class);
             if(ar.errorMessages().size() != 0){
@@ -103,7 +103,7 @@ public class Server {
 
 
         /**
-         * List the hypernims of a given word
+         * List the hypernyms of a given word
          * */
         get("/hypernyms/:senses/:word", (request, response) -> {
 
