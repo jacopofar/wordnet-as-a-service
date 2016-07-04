@@ -78,6 +78,28 @@ Just change the first of the URL with one of: _holonyms, entailments, substance_
 
 The number in the URL is the senses to be considered when retrieving the word synsets. Increasing it will lead to more results but often seemingly _wrong_ ones.
 
+__word definitions__
+
+Use
+
+    http://localhost:5679/definition/can
+
+to get the glosses:
+
+    [
+     {
+       "POS": "noun",
+       "gloss": "airtight sealed metal container for food or drink or paint etc.",
+       "other terms": "[can, tin can, tin]"
+     },
+     {
+       "POS": "noun",
+       "gloss": "the quantity contained in a can",
+       "other terms": "[can, canful]"
+     },
+     {
+     ...
+
 __As an annotator__
 
 The server can also produce a list of annotations for a given text and pattern:

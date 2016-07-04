@@ -129,10 +129,10 @@ public class Server {
 
 
             getRelated(request.params(":word"), reltype, null, Integer.parseInt(request.params(":senses"))).stream().forEach(sw -> {
-                ObjectNode hyp = JsonNodeFactory.instance.objectNode();
-                hyp.put("POS", sw.getPOS().getLabel());
-                hyp.put("word", sw.getLemma());
-                annotationArray.add(hyp);
+                ObjectNode syn = JsonNodeFactory.instance.objectNode();
+                syn.put("POS", sw.getPOS().getLabel());
+                syn.put("word", sw.getLemma());
+                annotationArray.add(syn);
             });
 
             response.type("application/json; charset=utf-8");
@@ -140,20 +140,26 @@ public class Server {
         });
 
         /**
-         * List the hyponyms of a given word
+         * List the definitions of a given word
          * */
-        get("/hyponyms/:senses/:word", (request, response) -> {
-
-            ArrayNode annotationArray =  JsonNodeFactory.instance.arrayNode();
-            getRelated(request.params(":word"), Relationships.HYPONYM, null, Integer.parseInt(request.params(":senses"))).stream().forEach(sw -> {
-                ObjectNode hyp = JsonNodeFactory.instance.objectNode();
-                hyp.put("POS", sw.getPOS().getLabel());
-                hyp.put("word", sw.getLemma());
-                annotationArray.add(hyp);
-            });
+        get("/definition/:word", (request, response) -> {
+            ArrayNode definitionArray =  JsonNodeFactory.instance.arrayNode();
+            HashSet<String> seenGlosses = new HashSet<>();
+            for(IndexWord w : dictionary.lookupAllIndexWords(request.params(":word")).getIndexWordArray()){
+                for(Synset sense:w.getSenses()) {
+                    if(seenGlosses.contains(sense.getGloss()))
+                        continue;
+                    ObjectNode syn = JsonNodeFactory.instance.objectNode();
+                    seenGlosses.add(sense.getGloss());
+                    syn.put("POS", w.getPOS().getLabel());
+                    syn.put("gloss", sense.getGloss());
+                    syn.put("other terms", Arrays.deepToString(sense.getWords().stream().map(tw->tw.getLemma()).collect(Collectors.toSet()).toArray()));
+                    definitionArray.add(syn);
+                }
+            }
 
             response.type("application/json; charset=utf-8");
-            return annotationArray.toString();
+            return definitionArray.toString();
         });
 
 
