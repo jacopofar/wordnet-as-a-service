@@ -15,9 +15,7 @@ import net.sf.extjwnl.data.list.PointerTargetNodeList;
 import net.sf.extjwnl.dictionary.Dictionary;
 import spark.Response;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static spark.Spark.*;
@@ -50,14 +48,15 @@ public class Server {
             response.body(exception.toString());
         });
 
-        post("/hypernims_tagger", (request, response) -> {
+        post("/hypernims_tagger/:senses", (request, response) -> {
             ObjectMapper mapper = new ObjectMapper();
             AnnotationRequest ar = mapper.readValue(request.body(), AnnotationRequest.class);
             if(ar.errorMessages().size() != 0){
                 response.status(400);
                 return "invalid request body. Errors: " + ar.errorMessages() ;
             }
-            HashSet<String> accepted = new HashSet<>();
+            List<POS> accepted_pos = null;
+            List<Word> matchWords = new LinkedList<>();
             //the user can provide a word with no POS (all the matches will be used) or a POS and the word
             String[] params = ar.getParameter().split(" ");
             if(params.length == 2){
@@ -66,44 +65,30 @@ public class Server {
                     response.status(400);
                     return "invalid request, the word type has to be adjective, noun or verb, or a, n, v. This was " + wordType ;
                 }
-                IndexWord w = null;
+                accepted_pos = new LinkedList<>();
                 if(wordType.startsWith("a"))
-                    w = dictionary.lookupIndexWord(POS.ADJECTIVE, params[1]);
+                    accepted_pos.add(POS.ADJECTIVE);
                 if(wordType.startsWith("v"))
-                    w = dictionary.lookupIndexWord(POS.VERB, params[1]);
+                    accepted_pos.add(POS.VERB);
                 if(wordType.startsWith("n"))
-                    w = dictionary.lookupIndexWord(POS.NOUN, params[1]);
-                if(w == null){
-                    System.out.println(" UNKNWOWN WORD: " + params[1]);
-                    response.type("application/json; charset=utf-8");
-                    return "{\"annotations\":[]}";
-                }
-                PointerTargetNodeList hypernyms = PointerUtils.getDirectHypernyms(w.getSenses().get(0));
-                accepted.addAll(hypernyms.get(0).getSynset().getWords().stream().map(sw -> sw.getLemma()).collect(Collectors.toList()));
+                    accepted_pos.add(POS.NOUN);
+
+                matchWords = getRelated(params[1], "hypernym", accepted_pos, Integer.parseInt(request.params(":senses")));
             }
             if(params.length == 1){
-                for(POS p:POS.getAllPOS()){
-                    IndexWord w = dictionary.lookupIndexWord(p,  params[0]);
-                    if(w == null)
-                        continue;
-                    accepted.addAll(PointerUtils.getDirectHypernyms(w.getSenses().get(0))
-                            .get(0).getSynset().getWords().stream().map(sw -> sw.getLemma()).collect(Collectors.toList()));
-                }
+                matchWords = getRelated(params[0], "hypernym", null, Integer.parseInt(request.params(":senses")));
             }
 
             if(params.length != 1 && params.length != 2){
                 response.status(400);
-                return "invalid parameter. Must be in the form POS+word (e.g. 'n cat') or just a word (e.g. 'cat)" ;
+                return "invalid parameter. Must be in the form 'POS word' (e.g. 'name cat') or just a word (e.g. 'cat')" ;
             }
 
             List<Annotation> anns = new ArrayList<>();
 
             String text = ar.getText().toLowerCase();
-            accepted.stream().forEach(l -> {
-                if(text.equals(l)){
-                    anns.add(new Annotation(0, text.length()));
-                    return;
-                }
+            Set<String> distinctWords = matchWords.stream().map(w -> w.getLemma()).collect(Collectors.toSet());
+            distinctWords.forEach(l -> {
                 int lastIndex=0;
                 while(true){
                     int ind=text.indexOf(l, lastIndex);
