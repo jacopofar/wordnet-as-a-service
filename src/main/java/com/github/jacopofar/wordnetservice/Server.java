@@ -14,6 +14,7 @@ import net.sf.extjwnl.data.*;
 import net.sf.extjwnl.data.list.PointerTargetNode;
 import net.sf.extjwnl.data.list.PointerTargetNodeList;
 import net.sf.extjwnl.dictionary.Dictionary;
+import org.json.JSONObject;
 import spark.Response;
 
 import java.util.*;
@@ -113,6 +114,51 @@ public class Server {
                 }
             });
             return sendAnnotations(anns, response);
+        });
+
+        /**
+         * Return a sample value for a parameter. Used by Fleximatcher to generate samples for whole patterns
+         * */
+        post("/sample/:tagger_type/:senses", (request, response) -> {
+            Relationships reltype = relNames.get(request.params(":tagger_type").replace("_sample",""));
+            if(reltype == null){
+                response.status(404);
+                return "Unknown lexical relationship type. Known ones:" + Arrays.toString(relNames.keySet().stream().map(n -> n + "_sample").toArray());
+            }
+            String parameter = new JSONObject(request.body()).getString("parameter");
+
+            Map<String, String> params = getParams(parameter);
+            if(!params.containsKey("w")){
+                response.status(400);
+                return "No word parameter found, it should be something like w=cat or pos=n,w=cat" ;
+            }
+
+
+            List<POS> accepted_pos = null;
+            List<Word> matchWords = new LinkedList<>();
+            //the user can provide the POS or not
+            if(params.containsKey("pos")){
+                String wordType = params.get("pos").toLowerCase();
+                if(!wordType.matches("(adjective)|(noun)|(verb)|(adverb)|(adv)|n|v|(adj)")){
+                    response.status(400);
+                    return "invalid request, the word type has to be adjective, adverb, noun or verb, or adj, adv, n, v. This was " + wordType ;
+                }
+                accepted_pos = new LinkedList<>();
+                if(wordType.startsWith("adv"))
+                    accepted_pos.add(POS.ADVERB);
+                if(wordType.startsWith("adj"))
+                    accepted_pos.add(POS.ADJECTIVE);
+                if(wordType.startsWith("v"))
+                    accepted_pos.add(POS.VERB);
+                if(wordType.startsWith("n"))
+                    accepted_pos.add(POS.NOUN);
+            }
+            matchWords = getRelated(params.get("w"), reltype, accepted_pos, Integer.parseInt(request.params(":senses")));
+
+            List<String> distinctWords = matchWords.stream().map(w -> w.getLemma()).collect(Collectors.toList());
+            if(distinctWords.size() == 0)
+                return "";
+            return distinctWords.get((int) Math.floor(Math.random() * distinctWords.size()));
         });
 
 
