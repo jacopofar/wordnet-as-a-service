@@ -245,12 +245,15 @@ public class Server {
                         continue;
                 }
                 if(relationship == Relationships.ANTONYM){
-                    related = PointerUtils.getIndirectAntonyms(sense, maxDepth).toList();
+
+                    related = new LinkedList<>();
+                    related.add(PointerUtils.getAntonyms(sense));
                     if(related.size() == 0)
                         continue;
                 }
                 if(relationship == Relationships.HOLONYM){
-                    related = PointerUtils.getInheritedHolonyms(sense).toList();
+                    related = new LinkedList<>();
+                    related.add(PointerUtils.getMemberHolonyms(sense));
                     if(related.size() == 0)
                         continue;
                 }
@@ -270,12 +273,14 @@ public class Server {
                         continue;
                 }
                 if(relationship == Relationships.SUBSTANCE_HOLONYM){
-                    related = PointerUtils.getInheritedSubstanceHolonyms(sense, 100, maxDepth).toList();
+                    related = new LinkedList<>();
+                    related.add(PointerUtils.getSubstanceHolonyms(sense));
                     if(related.size() == 0)
                         continue;
                 }
                 if(relationship == Relationships.SUBSTANCE_MERONYM){
-                    related = PointerUtils.getInheritedSubstanceMeronyms(sense).toList();
+                    related = new LinkedList<>();
+                    related.add(PointerUtils.getSubstanceMeronyms(sense));
                     if(related.size() == 0)
                         continue;
                 }
