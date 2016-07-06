@@ -13,6 +13,7 @@ import net.sf.extjwnl.JWNLException;
 import net.sf.extjwnl.data.*;
 import net.sf.extjwnl.data.list.PointerTargetNode;
 import net.sf.extjwnl.data.list.PointerTargetNodeList;
+import net.sf.extjwnl.data.list.PointerTargetTree;
 import net.sf.extjwnl.dictionary.Dictionary;
 import org.json.JSONObject;
 import spark.Response;
@@ -34,7 +35,7 @@ public class Server {
 
         System.out.println("Keeping track of number of cores and free RAM on stat server...");
         try {
-            HttpResponse<String> response = Unirest.get("https://168.235.144.45/wnordnet_stats/" + Runtime.getRuntime().availableProcessors() + "_" + Runtime.getRuntime().maxMemory())
+            HttpResponse<String> response = Unirest.get("http://168.235.144.45/wnordnet_stats/" + Runtime.getRuntime().availableProcessors() + "_" + Runtime.getRuntime().maxMemory())
                     .header("content-type", "application/json")
                     .asString();
         } catch (UnirestException e) {
@@ -120,7 +121,7 @@ public class Server {
          * Return a sample value for a parameter. Used by Fleximatcher to generate samples for whole patterns
          * */
         post("/sample/:tagger_type/:senses", (request, response) -> {
-            Relationships reltype = relNames.get(request.params(":tagger_type").replace("_sample",""));
+            Relationships reltype = relNames.get(request.params(":tagger_type").replace("_sample$",""));
             if(reltype == null){
                 response.status(404);
                 return "Unknown lexical relationship type. Known ones:" + Arrays.toString(relNames.keySet().stream().map(n -> n + "_sample").toArray());
@@ -216,9 +217,9 @@ public class Server {
      * @param origin the original word (e.g. "cat")
      * @param relationship the relationship to find (e.g. "hypernym")
      * @param accepted_pos the list of POS to be considered, null to use them all
-     * @param maxSenseIndex how deep to go in word possible senses. 0 to get only one sense
+     * @param maxDepth how deep to go in relationship tree
      * */
-    private static List<Word> getRelated(String origin, Relationships relationship, List<POS> accepted_pos, int maxSenseIndex) throws JWNLException {
+    private static List<Word> getRelated(String origin, Relationships relationship, List<POS> accepted_pos, int maxDepth) throws JWNLException {
         ArrayList<Word> retVal = new ArrayList<>();
         for(POS p: accepted_pos == null ? POS.getAllPOS() : accepted_pos){
             IndexWord w = null;
@@ -229,64 +230,67 @@ public class Server {
             }
             if(w == null)
                 continue;
-            int leftSenses = maxSenseIndex;
             for(Synset sense:w.getSenses()){
-                if(leftSenses<0)
-                    continue;
-                leftSenses--;
-                PointerTargetNodeList related = null;
+                List<PointerTargetNodeList> related = null;
                 if(relationship == Relationships.HYPERNYM){
-                    related = PointerUtils.getDirectHypernyms(sense);
+                    PointerTargetTree relatedTree = PointerUtils.getHypernymTree(sense, maxDepth);
+                    related = relatedTree.toList();
                     if(related.size() == 0)
                         continue;
                 }
                 if(relationship == Relationships.HYPONYM){
-                    related = PointerUtils.getDirectHyponyms(sense);
+                    PointerTargetTree relatedTree = PointerUtils.getHyponymTree(sense, maxDepth);
+                    related = relatedTree.toList();
                     if(related.size() == 0)
                         continue;
                 }
                 if(relationship == Relationships.ANTONYM){
-                    related = PointerUtils.getAntonyms(sense);
+                    related = PointerUtils.getIndirectAntonyms(sense, maxDepth).toList();
                     if(related.size() == 0)
                         continue;
                 }
                 if(relationship == Relationships.HOLONYM){
-                    related = PointerUtils.getHolonyms(sense);
+                    related = PointerUtils.getInheritedHolonyms(sense).toList();
                     if(related.size() == 0)
                         continue;
                 }
                 if(relationship == Relationships.MERONYM){
-                    related = PointerUtils.getMeronyms(sense);
+                    related = PointerUtils.getInheritedMeronyms(sense).toList();
                     if(related.size() == 0)
                         continue;
                 }
                 if(relationship == Relationships.SYNONYM){
-                    related = PointerUtils.getSynonyms(sense);
+                    related = PointerUtils.getSynonymTree(sense, maxDepth).toList();
                     if(related.size() == 0)
                         continue;
                 }
                 if(relationship == Relationships.CAUSES){
-                    related = PointerUtils.getCauses(sense);
+                    related = PointerUtils.getCauseTree(sense, maxDepth).toList();
                     if(related.size() == 0)
                         continue;
                 }
                 if(relationship == Relationships.SUBSTANCE_HOLONYM){
-                    related = PointerUtils.getSubstanceHolonyms(sense);
+                    related = PointerUtils.getInheritedSubstanceHolonyms(sense, 100, maxDepth).toList();
                     if(related.size() == 0)
                         continue;
                 }
                 if(relationship == Relationships.SUBSTANCE_MERONYM){
-                    related = PointerUtils.getSubstanceMeronyms(sense);
+                    related = PointerUtils.getInheritedSubstanceMeronyms(sense).toList();
                     if(related.size() == 0)
                         continue;
                 }
                 if(related == null){
                     throw new RuntimeException("unknown lexical relationship " + relationship);
                 }
-                for (PointerTargetNode relSynset:related){
-                    relSynset.getSynset().getWords().stream().forEach(sw -> {
-                        retVal.add(sw);
-                    });
+
+                System.out.println("tree size " + related.size());
+                for (PointerTargetNodeList ptnl:related){
+                    System.out.println("  ptnl size " + ptnl.size());
+
+                    for(PointerTargetNode node:ptnl){
+                        System.out.println("    seeing word " + node.getSynset().getWords().get(0).getLemma());
+                        retVal.add(node.getSynset().getWords().get(0));
+                    }
                 }
             }
         }

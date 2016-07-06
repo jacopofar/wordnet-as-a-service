@@ -76,7 +76,7 @@ __synonyms, substance holonyms, meronyms and others__
 
 Just change the first of the URL with one of: _holonyms, entailments, substance_meronyms, hyponyms, antonyms, synonyms, substance_holonyms, meronyms, causess or hypernyms_.
 
-The number in the URL is the senses to be considered when retrieving the word synsets. Increasing it will lead to more results but often seemingly _wrong_ ones.
+The number in the URL is the senses to be considered when retrieving the word synsets. Increasing it will lead to more results but often seemingly "wrong" ones.
 
 __word definitions__
 
