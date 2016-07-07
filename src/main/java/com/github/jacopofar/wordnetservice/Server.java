@@ -12,6 +12,7 @@ import net.sf.extjwnl.data.list.PointerTargetNode;
 import net.sf.extjwnl.data.list.PointerTargetNodeList;
 import net.sf.extjwnl.data.list.PointerTargetTree;
 import net.sf.extjwnl.dictionary.Dictionary;
+import org.json.JSONException;
 import org.json.JSONObject;
 import spark.Response;
 
@@ -41,7 +42,15 @@ public class Server {
             System.out.println("Exception:");
             exception.printStackTrace(System.out);
             response.status(400);
-            response.body(exception.toString());
+            JSONObject exc = new JSONObject();
+            try {
+                exc.put("error",exception.toString());
+            } catch (JSONException e) {
+                //can never happen...
+                e.printStackTrace();
+            }
+            response.type("application/json; charset=utf-8");
+            response.body(exc.toString());
         });
 
         /**
@@ -311,9 +320,14 @@ public class Server {
         Map<String, String> map = new HashMap<>();
         for (String param : params) {
             String[] spl = param.split("=");
-            String name = spl[0];
+            try{
+            String name = spl[0].trim();
             String value = spl[1];
             map.put(name, value);
+            }
+            catch(ArrayIndexOutOfBoundsException e){
+                throw new RuntimeException("Invalid parameter from, must me a comma separated list of assignments, like w=cat,n=v");
+            }
         }
         return map;
     }
