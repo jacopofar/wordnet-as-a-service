@@ -169,12 +169,16 @@ public class Server {
                 return "Unknown lexical relationship type. Known ones:" + Arrays.toString(relNames.keySet().stream().map(n -> n + "s").toArray());
             }
             ArrayNode annotationArray =  JsonNodeFactory.instance.arrayNode();
-
-
+            HashSet<String> found = new HashSet<>();
             getRelated(request.params(":word"), reltype, null, Integer.parseInt(request.params(":senses"))).stream().forEach(sw -> {
                 ObjectNode syn = JsonNodeFactory.instance.objectNode();
-                syn.put("POS", sw.getPOS().getLabel());
-                syn.put("word", sw.getLemma());
+                String pos = sw.getPOS().getLabel();
+                String lemma = sw.getLemma();
+                if(found.contains(pos + "_" + lemma))
+                    return;
+                found.add(pos + "_" + lemma);
+                syn.put("POS", pos);
+                syn.put("word", lemma);
                 annotationArray.add(syn);
             });
 
