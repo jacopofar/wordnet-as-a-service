@@ -117,10 +117,10 @@ public class Server {
          * Return a sample value for a parameter. Used by Fleximatcher to generate samples for whole patterns
          * */
         post("/sample/:tagger_type/:senses", (request, response) -> {
-            Relationships reltype = relNames.get(request.params(":tagger_type").replace("_sample$",""));
+            Relationships reltype = relNames.get(request.params(":tagger_type").replace("s_sample$",""));
             if(reltype == null){
                 response.status(404);
-                return "Unknown lexical relationship type. Known ones:" + Arrays.toString(relNames.keySet().stream().map(n -> n + "_sample").toArray());
+                return "Unknown lexical relationship type. Known ones:" + Arrays.toString(relNames.keySet().stream().map(n -> n + "s_sample").toArray());
             }
             String parameter = new JSONObject(request.body()).getString("parameter");
 
