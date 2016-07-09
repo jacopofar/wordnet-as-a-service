@@ -13,7 +13,7 @@ Run the service by cloning it and use `mvn compile && mvn exec:java` or using Do
 
 __Retrieve hypernyms of a word:__
 
-    curl http://localhost:5679/hypernyms/1/fork
+    curl http://localhost:5679/hypernym/1/fork
 
     [
       {
@@ -36,7 +36,7 @@ __Retrieve hypernyms of a word:__
 
 __hyponyms__
 
-    curl http://localhost:5679/hyponyms/1/tool
+    curl http://localhost:5679/hyponym/1/tool
 
     [
       {
@@ -55,7 +55,7 @@ __hyponyms__
 
 __holonyms__
 
-     curl http://localhost:5679/holonyms/1/France
+     curl http://localhost:5679/holonym/1/France
 
      [
        {
@@ -74,7 +74,7 @@ __holonyms__
 
 __synonyms, substance holonyms, meronyms and others__
 
-Just change the first of the URL with one of: _holonyms, entailments, substance_meronyms, hyponyms, antonyms, synonyms, substance_holonyms, meronyms, causess or hypernyms_.
+Just change the first of the URL with one of: _holonym, entailment, substance_meronym, hyponym, antonym, synonym, substance_holonym, meronym, cause or hypernym_.
 
 The number in the URL is the senses to be considered when retrieving the word synsets. Increasing it will lead to more results but often seemingly "wrong" ones.
 
@@ -117,4 +117,11 @@ will return:
       ]
     }
 
-this format is suitable to be used as an HTTP annotator for [Fleximatcher](https://github.com/jacopofar/fleximatcher-web-interface)
+__Generate a sample__
+You can use the same format of the annotator to generate a sample of something matching the word type:
+
+    curl -X POST -H "Content-Type: application/json" -H "Cache-Control: no-cache" -H "Postman-Token: 41610ffd-f6e9-1573-850d-86b7bdcb29af" -d '{"parameter":"pos=n,w=bike"}' "http://localhost:5679/sample/hyponym/4"
+
+will return, for example, _velocipede_.
+
+This format is suitable to be used as an HTTP annotator/generator for [Fleximatcher](https://github.com/jacopofar/fleximatcher-web-interface)

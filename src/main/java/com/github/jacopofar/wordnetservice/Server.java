@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 import static spark.Spark.*;
 
 public class Server {
-    enum Relationships {HYPERNYM, HYPONYM, ANTONYM, HOLONYM, SYNONYM, CAUSES, SUBSTANCE_HOLONYM, SUBSTANCE_MERONYM, MERONYM}
+    enum Relationships {HYPERNYM, HYPONYM, ANTONYM, HOLONYM, SYNONYM, CAUSE,  SUBSTANCE_HOLONYM, SUBSTANCE_MERONYM, MERONYM}
     static HashMap<String, Relationships> relNames = new HashMap<>();
     static{
         for(Relationships v:Relationships.values())
@@ -57,10 +57,10 @@ public class Server {
          * Tag the words in a given relationship with the parameter
          * */
         post("/:tagger_type/:senses", (request, response) -> {
-            Relationships reltype = relNames.get(request.params(":tagger_type").replace("s_tagger",""));
+            Relationships reltype = relNames.get(request.params(":tagger_type"));
             if(reltype == null){
                 response.status(404);
-                return "Unknown lexical relationship type. Known ones:" + Arrays.toString(relNames.keySet().stream().map(n -> n + "s_tagger").toArray());
+                return "Unknown lexical relationship type. Known ones:" + Arrays.toString(relNames.keySet().toArray());
             }
             ObjectMapper mapper = new ObjectMapper();
             AnnotationRequest ar = mapper.readValue(request.body(), AnnotationRequest.class);
@@ -117,10 +117,10 @@ public class Server {
          * Return a sample value for a parameter. Used by Fleximatcher to generate samples for whole patterns
          * */
         post("/sample/:tagger_type/:senses", (request, response) -> {
-            Relationships reltype = relNames.get(request.params(":tagger_type").replace("s_sample$",""));
+            Relationships reltype = relNames.get(request.params(":tagger_type"));
             if(reltype == null){
                 response.status(404);
-                return "Unknown lexical relationship type. Known ones:" + Arrays.toString(relNames.keySet().stream().map(n -> n + "s_sample").toArray());
+                return "Unknown lexical relationship type. Known ones:" + Arrays.toString(relNames.keySet().toArray());
             }
             String parameter = new JSONObject(request.body()).getString("parameter");
 
@@ -267,7 +267,7 @@ public class Server {
                     if(related.size() == 0)
                         continue;
                 }
-                if(relationship == Relationships.CAUSES){
+                if(relationship == Relationships.CAUSE){
                     related = PointerUtils.getCauseTree(sense, maxDepth).toList();
                     if(related.size() == 0)
                         continue;
@@ -288,12 +288,9 @@ public class Server {
                     throw new RuntimeException("unknown lexical relationship " + relationship);
                 }
 
-                System.out.println("tree size " + related.size());
                 for (PointerTargetNodeList ptnl:related){
-                    System.out.println("  ptnl size " + ptnl.size());
 
                     for(PointerTargetNode node:ptnl){
-                        System.out.println("    seeing word " + node.getSynset().getWords().get(0).getLemma());
                         retVal.add(node.getSynset().getWords().get(0));
                     }
                 }
