@@ -119,16 +119,17 @@ public class Server {
 
             String text = ar.getText().toLowerCase();
             Set<String> distinctWords = matchWords.stream().map(w -> w.getLemma()).collect(Collectors.toSet());
+
             distinctWords.forEach(l -> {
                 int lastIndex=0;
                 while(true){
-                    int ind=text.indexOf(l, lastIndex);
+                    int ind = text.indexOf(l, lastIndex);
                     if(ind ==- 1)
                         break;
                     //it's the English WordNet, so we can tokenize easily and ignore substrings
-                    if(ind == 0 || Character.isAlphabetic(text.charAt(ind -1))){
+                    if(ind == 0 || !Character.isLetter(text.charAt(ind -1))){
                         //now we know the word is the first of the string or after a non-alphabetic char
-                        if(ind + l.length() == text.length() || Character.isAlphabetic(text.charAt(ind + l.length()))){
+                        if(ind + l.length() == text.length() || !Character.isLetter(text.charAt(ind + l.length()))){
                             //and it's also at the end of the text or before a non-alphabetic char
                             anns.add(new Annotation(ind, ind + l.length()));
                         }
