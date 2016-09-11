@@ -178,12 +178,18 @@ public class Server {
                 if(wordType.startsWith("n"))
                     accepted_pos.add(POS.NOUN);
             }
-            matchWords = withPlurals(getRelated(params.get("w"), reltype, accepted_pos, Integer.parseInt(request.params(":senses"))));
+            matchWords = getRelated(params.get("w"), reltype, accepted_pos, Integer.parseInt(request.params(":senses")));
 
-            List<String> distinctWords = matchWords.stream().map(w -> w.getLemma()).collect(Collectors.toList());
+            Set<String> distinctWords = withPlurals(matchWords.stream().map(w -> w.getLemma()).collect(Collectors.toSet()));
             if(distinctWords.size() == 0)
                 return "";
-            return distinctWords.get((int) Math.floor(Math.random() * distinctWords.size()));
+            int elapsing = (int) Math.floor(Math.random() * distinctWords.size());
+            for(String w: distinctWords){
+                elapsing--;
+                if(elapsing <= 0)
+                    return w;
+            }
+            return null;
         });
 
 
