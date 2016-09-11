@@ -12,6 +12,7 @@ import net.sf.extjwnl.data.list.PointerTargetNode;
 import net.sf.extjwnl.data.list.PointerTargetNodeList;
 import net.sf.extjwnl.data.list.PointerTargetTree;
 import net.sf.extjwnl.dictionary.Dictionary;
+import org.atteo.evo.inflector.English;
 import org.json.JSONException;
 import org.json.JSONObject;
 import spark.Response;
@@ -118,7 +119,7 @@ public class Server {
             List<Annotation> anns = new ArrayList<>();
 
             String text = ar.getText().toLowerCase();
-            Set<String> distinctWords = matchWords.stream().map(w -> w.getLemma()).collect(Collectors.toSet());
+            Set<String> distinctWords = withPlurals(matchWords.stream().map(w -> w.getLemma()).collect(Collectors.toSet()));
 
             distinctWords.forEach(l -> {
                 int lastIndex=0;
@@ -177,7 +178,7 @@ public class Server {
                 if(wordType.startsWith("n"))
                     accepted_pos.add(POS.NOUN);
             }
-            matchWords = getRelated(params.get("w"), reltype, accepted_pos, Integer.parseInt(request.params(":senses")));
+            matchWords = withPlurals(getRelated(params.get("w"), reltype, accepted_pos, Integer.parseInt(request.params(":senses"))));
 
             List<String> distinctWords = matchWords.stream().map(w -> w.getLemma()).collect(Collectors.toList());
             if(distinctWords.size() == 0)
@@ -187,7 +188,7 @@ public class Server {
 
 
         /**
-         * List the hypernyms/hyponyms/anything else of a given word
+         * List the hypernyms/hyponyms/anything else of a given word. It doesn't return plurals, but those are considered when parsing
          * */
         get("/:relationship/:senses/:word", (request, response) -> {
             Relationships reltype = relNames.get(request.params(":relationship").replaceAll("s$",""));
@@ -349,14 +350,27 @@ public class Server {
         for (String param : params) {
             String[] spl = param.split("=");
             try{
-            String name = spl[0].trim();
-            String value = spl[1];
-            map.put(name, value);
+                String name = spl[0].trim();
+                String value = spl[1];
+                map.put(name, value);
             }
             catch(ArrayIndexOutOfBoundsException e){
                 throw new RuntimeException("Invalid parameter from, must me a comma separated list of assignments, like w=cat,n=v");
             }
         }
         return map;
+    }
+
+    /**
+     * Return a Set containing both the original words and their (regular) English plural.
+     *
+     * */
+    private static Set<String> withPlurals(Set<String> original){
+        Set ret = new HashSet<String> (original.size() * 2);
+        for(String o: original) {
+            ret.add(o);
+            ret.add(English.plural(o));
+        }
+        return ret;
     }
 }

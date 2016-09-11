@@ -66,7 +66,11 @@
             <artifactId>unirest-java</artifactId>
             <version>1.4.9</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.atteo</groupId>
+            <artifactId>evo-inflector</artifactId>
+            <version>1.2</version>
+        </dependency>
 
     </dependencies>
     <properties>

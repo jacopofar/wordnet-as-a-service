@@ -125,3 +125,8 @@ You can use the same format of the annotator to generate a sample of something m
 will return, for example, _velocipede_.
 
 This format is suitable to be used as an HTTP annotator/generator for [Fleximatcher](https://github.com/jacopofar/fleximatcher-web-interface)
+
+Plurals
+=======
+
+The server uses [Evo inflector](https://github.com/atteo/evo-inflector) to educatedly guess English words plurals and match them (so, matching the hyponyms of "animal" will get "cats" as well as "cat")
