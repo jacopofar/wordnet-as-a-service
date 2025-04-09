@@ -1,4 +1,13 @@
 # wordnet-as-a-service
+
+## Deprecation note
+
+While this application should still work it's not updated since many years and I think this data can be much better handled using projects such as [Wiktextract](https://github.com/tatuylonen/wiktextract)
+
+This repository is archived to reduce noise
+
+------
+
 This application exposes a few WordNet functions with a simple REST interface.
 In particular, can be used from a browser or as a text annotator.
 
